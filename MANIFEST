@@ -6,3 +6,5 @@ lib/BS/Event.pm
 t/00-load.t
 t/pod-coverage.t
 t/pod.t
+t/01_simple_events.t
+samples/simple_example

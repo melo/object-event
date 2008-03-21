@@ -1,4 +1,8 @@
 Revision history for BS-Event
 
+0.2 Fri Mar 21 01:38:12 CET 2008
+        - forgot a simple test for the event handling
+        - added an example
+
 0.1 Thu Mar 20 13:18:12 CET 2008
         - initial release
