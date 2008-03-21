@@ -1,52 +1,156 @@
-BS-Event
+NAME
+    BS::Event - A class that provides an event callback interface
 
-The README is used to introduce the module and provide instructions on
-how to install the module, any machine dependencies it may have (for
-example C compilers and installed libraries) and any other information
-that should be provided before the module is installed.
+VERSION
+    Version 0.2
 
-A README file is required for CPAN modules since CPAN extracts the README
-file from a module distribution so that people browsing the archive
-can use it to get an idea of the module's uses. It is usually a good idea
-to provide version information here so that people can decide whether
-fixes for the module are worth downloading.
+SYNOPSIS
+       package foo;
+       use BS::Event;
 
+       our @ISA = qw/BS::Event/;
 
-INSTALLATION
+       package main;
+       my $o = foo->new;
 
-To install this module, run the following commands:
+       my $regid = $o->reg_cb (foo => sub {
+          print "I got an event, with these args: $_[1], $_[2], $_[3]\n";
+       });
 
-	perl Makefile.PL
-	make
-	make test
-	make install
+       $o->event (foo => 1, 2, 3);
 
-SUPPORT AND DOCUMENTATION
+       $o->unreg_cb ($regid);
 
-After installing, you can find documentation for this module with the
-perldoc command.
+DESCRIPTION
+    This module was mainly written for Net::XMPP2, Net::IRC3 and BS to
+    provide a consistent API for registering and emitting events. Even
+    though I originally wrote it for those modules I relased it seperately
+    in case anyone may find this module useful.
 
-    perldoc BS::Event
+    For more comprehensive event handling see also Glib and POE.
 
-You can also look for information at:
+    This class provides a simple way to extend a class, by inheriting from
+    this class, with an event callback interface.
 
-    RT, CPAN's request tracker
-        http://rt.cpan.org/NoAuth/Bugs.html?Dist=BS-Event
+    You will be able to register callbacks for event names and call them
+    later.
 
-    AnnoCPAN, Annotated CPAN documentation
-        http://annocpan.org/dist/BS-Event
+    This class is only really useful if you derive from it.
 
-    CPAN Ratings
-        http://cpanratings.perl.org/d/BS-Event
+PERFORMANCE
+    In the first version as presented here no special performance
+    optimisations have been applied. So take care that it is fast enough for
+    your purposes. At least for modules like Net::XMPP2 the overhead is
+    probably not noticeable, as other technologies like XML already waste a
+    lot more CPU cycles.
 
-    Search CPAN
-        http://search.cpan.org/dist/BS-Event
+METHODS
+    new (%hashcontent)
+        This is a convenience constructor. It will create a blessed
+        hashreference initialized with %hashcontent.
 
+    set_exception_cb ($cb)
+        If some event callback threw an exception then $cb is called with
+        the exception as first argument.
 
-COPYRIGHT AND LICENCE
+    reg_cb ($eventname1, $cb1, [$eventname2, $cb2, ...])
+        This method registers a callback $cb1 for the event with the name
+        $eventname1. You can also pass multiple of these eventname =>
+        callback pairs.
 
-Copyright (C) 2008 Robin Redeker
+        The return value will be an ID that represents the set of callbacks
+        you have installed. Call "unreg_cb" with that ID to remove those
+        callbacks again.
 
-This program is free software; you can redistribute it and/or modify it
-under the same terms as Perl itself.
+        The callbacks will be called in an array context. If a callback
+        doesn't want to return any value it should return an empty list. All
+        results from the callbacks will be appended and returned by the
+        "event" method.
+
+        For every event there are two other events emitted:
+
+        Before the callbacks for $eventname is being exectued the event
+        "before_$eventname" is being emitted. And after the callbacks for
+        $eventname have been run, the event "after_$eventname" is being
+        emitted.
+
+        The "before_$eventname" callbacks allow you to stop the execution of
+        all callbacks for the event $eventname and "after_$eventname". This
+        can be used to intercept events and stop them.
+
+        If you give reg_cb a special argument called "_while_referenced" you
+        can prevent callbacks from being executed once the reference in the
+        second argument becomes undef. This works by converting the internal
+        reference of the argument to "_while_referenced" to a weak reference
+        and looking whether that reference becomes undef.
+
+        It works like this:
+
+           Scalar::Util::weaken $window;
+           $event_source->reg_cb (
+              _while_referenced => $window,
+              disconnect => sub { $window->destroy }
+           );
+
+        Whenever the "disconnect" event is emitted now and $window doesn't
+        exist anymore the callback will be removed;
+
+    unreg_cb ($id)
+        Removes the set $id of registered callbacks. $id is the return value
+        of a "reg_cb" call.
+
+    event ($eventname, @args)
+        Emits the event $eventname and passes the arguments @args. The
+        return value is a list of defined return values from the event
+        callbacks.
+
+        See also the specification of the before and after events in
+        "reg_cb" above.
+
+    _event ($eventname, @args)
+        This directly executes the event $eventname without executing
+        callbacks of the before and after events (as specified in "reg_cb"
+        above).
+
+    unreg_me
+        If this method is called from a callback on the first argument to
+        the callback (thats $self) the callback will be deleted after it is
+        finished.
+
+    stop_event
+        When called in a 'before_' event callback then the execution of the
+        event is stopped after all 'before_' callbacks have been run.
+
+    add_forward ($obj, $forward_cb)
+        This method allows to forward or copy all events to an object.
+        $forward_cb will be called everytime an event is generated in $self.
+        The first argument to the callback $forward_cb will be $self, the
+        second will be $obj, the third will be the event name and the rest
+        will be the event arguments. (For third and rest of argument also
+        see description of "event").
+
+        (Please note that it might be most useful to call "_event" in the
+        callback to allow objects that receive the forwarded events to react
+        better.)
+
+    remove_forward ($obj)
+        This method removes a forward. $obj must be the same object that was
+        given "add_forward" as the $obj argument.
+
+    remove_all_callbacks
+        This method removes all registered event callbacks and forwards from
+        this object.
+
+    events_as_string_dump
+        This method returns a string dump of all registered event callbacks.
+        This method is only for debugging purposes.
+
+AUTHOR
+    Robin Redeker, "<elmex at ta-sa.org>", JID: "<elmex at jabber.org>"
+
+COPYRIGHT & LICENSE
+    Copyright 2007 Robin Redeker, all rights reserved.
+
+    This program is free software; you can redistribute it and/or modify it
+    under the same terms as Perl itself.
 

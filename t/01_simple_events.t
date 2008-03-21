@@ -3,12 +3,16 @@
 use Test::More tests => 5;
 
 package foo;
+use strict;
+no warnings;
 
 use BS::Event;
 
 our @ISA = qw/BS::Event/;
 
 package main;
+use strict;
+no warnings;
 
 my $f = foo->new;
 

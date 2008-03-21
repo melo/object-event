@@ -6,6 +6,14 @@ use Scalar::Util qw/weaken/;
 
 BS::Event - A class that provides an event callback interface
 
+=head1 VERSION
+
+Version 0.2
+
+=cut
+
+our $VERSION = '0.2';
+
 =head1 SYNOPSIS
 
    package foo;
@@ -40,7 +48,21 @@ You will be able to register callbacks for event names and call them later.
 
 This class is only really useful if you derive from it.
 
+=head1 PERFORMANCE
+
+In the first version as presented here no special performance optimisations have
+been applied. So take care that it is fast enough for your purposes.
+At least for modules like L<Net::XMPP2> the overhead is probably not noticeable,
+as other technologies like XML already waste a lot more CPU cycles.
+
 =head1 METHODS
+
+=over 4
+
+=item B<new (%hashcontent)>
+
+This is a convenience constructor. It will create a blessed
+hashreference initialized with C<%hashcontent>.
 
 =cut
 
@@ -53,8 +75,6 @@ sub new {
    return $self
 }
 
-=over 4
-
 =item B<set_exception_cb ($cb)>
 
 If some event callback threw an exception then C<$cb> is called with
@@ -64,7 +84,7 @@ the exception as first argument.
 
 sub set_exception_cb {
    my ($self, $cb) = @_;
-   $self->{exception_cb} = $cb;
+   $self->{__bsev_exception_cb} = $cb;
 }
 
 =item B<reg_cb ($eventname1, $cb1, [$eventname2, $cb2, ...])>
@@ -111,20 +131,22 @@ exist anymore the callback will be removed;
 =cut
 
 sub reg_cb {
-   my ($self, %regs) = @_;
+   my ($self, @regs) = @_;
 
    $self->{_ev_id}++;
 
+   my %regs      = @regs;
    my $while_ref = delete $regs{_while_referenced};
 
-   for my $cmd (keys %regs) {
-      my $arg = [$self->{_ev_id}, $regs{$cmd}];
+   while (@regs) {
+      my ($cmd, $cb) = (shift @regs, shift @regs);
+      my $arg = [$self->{_ev_id}, $cb];
 
       if (defined $while_ref) {
          push @$arg, (1, $while_ref);
       }
 
-      push @{$self->{events}->{$cmd}}, $arg;
+      push @{$self->{__bsev_events}->{$cmd}}, $arg;
 
       if ($arg->[2]) {
          weaken $arg->[3];
@@ -144,11 +166,11 @@ return value of a C<reg_cb> call.
 sub unreg_cb {
    my ($self, $id) = @_;
 
-   for my $key (keys %{$self->{events}}) {
-      @{$self->{events}->{$key}} =
+   for my $key (keys %{$self->{__bsev_events}}) {
+      @{$self->{__bsev_events}->{$key}} =
          grep {
             $_->[0] ne $id
-         } @{$self->{events}->{$key}};
+         } @{$self->{__bsev_events}->{$key}};
    }
 }
 
@@ -165,21 +187,21 @@ See also the specification of the before and after events in C<reg_cb> above.
 sub event {
    my ($self, $ev, @arg) = @_;
 
-   my $old_stop = $self->{stop_event};
-   $self->{stop_event} = 0;
+   my $old_stop = $self->{__bsev_stop_event};
+   $self->{__bsev_stop_event} = 0;
 
    my @res;
    push @res, $self->_event ("before_$ev", @arg);
 
-   if ($self->{stop_event}) {
-      $self->{stop_event} = $old_stop;
+   if ($self->{__bsev_stop_event}) {
+      $self->{__bsev_stop_event} = $old_stop;
       return @res;
    }
 
    push @res, $self->_event ("ext_before_$ev", @arg);
 
-   if ($self->{stop_event}) {
-      $self->{stop_event} = $old_stop;
+   if ($self->{__bsev_stop_event}) {
+      $self->{__bsev_stop_event} = $old_stop;
       return @res;
    }
 
@@ -189,7 +211,7 @@ sub event {
 
    push @res, $self->_event ("after_$ev", @arg);
 
-   $self->{stop_event} = $old_stop;
+   $self->{__bsev_stop_event} = $old_stop;
 
    @res
 }
@@ -204,13 +226,13 @@ callbacks of the before and after events (as specified in C<reg_cb> above).
 sub _event {
    my ($self, $ev, @arg) = @_;
 
-   my $old_cb_state = $self->{cb_state};
+   my $old_cb_state = $self->{__bsev_cb_state};
    my @res;
    my $nxt = [];
 
-   my @evs = @{$self->{events}->{$ev} || []};
+   my @evs = @{$self->{__bsev_events}->{$ev} || []};
    for my $rev (@evs) {
-      my $state = $self->{cb_state} = {};
+      my $state = $self->{__bsev_cb_state} = {};
 
       if ($rev->[2] && not defined $rev->[3]) {
          $state->{remove} = 1;
@@ -220,8 +242,8 @@ sub _event {
             push @res, $rev->[1]->($self, @arg);
          };
          if ($@) {
-            if ($self->{exception_cb}) {
-               $self->{exception_cb}->($@);
+            if ($self->{__bsev_exception_cb}) {
+               $self->{__bsev_exception_cb}->($@);
             } else {
                warn "unhandled callback exception (object: $self, event: $ev): $@";
             }
@@ -231,14 +253,14 @@ sub _event {
       push @$nxt, $rev unless $state->{remove};
    }
    if (!@$nxt) {
-      delete $self->{events}->{$ev}
+      delete $self->{__bsev_events}->{$ev}
    } else {
-      $self->{events}->{$ev} = $nxt;
+      $self->{__bsev_events}->{$ev} = $nxt;
    }
 
-   for my $ev_frwd (keys %{$self->{event_forwards}}) {
-      my $rev = $self->{event_forwards}->{$ev_frwd};
-      my $state = $self->{cb_state} = {};
+   for my $ev_frwd (keys %{$self->{__bsev_event_forwards}}) {
+      my $rev = $self->{__bsev_event_forwards}->{$ev_frwd};
+      my $state = $self->{__bsev_cb_state} = {};
 
       my $stop_before = $rev->[0]->{stop_event};
       $rev->[0]->{stop_event} = 0;
@@ -246,8 +268,8 @@ sub _event {
          push @res, $rev->[1]->($self, $rev->[0], $ev, @arg);
       };
       if ($@) {
-         if ($self->{exception_cb}) {
-            $self->{exception_cb}->($@);
+         if ($self->{__bsev_exception_cb}) {
+            $self->{__bsev_exception_cb}->($@);
          } else {
             warn "unhandled callback exception: $@";
          }
@@ -258,10 +280,10 @@ sub _event {
       $rev->[0]->{stop_event} = $stop_before;
 
       if ($state->{remove}) {
-         delete $self->{event_forwards}->{$ev_frwd};
+         delete $self->{__bsev_event_forwards}->{$ev_frwd};
       }
    }
-   $self->{cb_state} = $old_cb_state;
+   $self->{__bsev_cb_state} = $old_cb_state;
 
 
    @res
@@ -276,7 +298,7 @@ callback (thats C<$self>) the callback will be deleted after it is finished.
 
 sub unreg_me {
    my ($self) = @_;
-   $self->{cb_state}->{remove} = 1;
+   $self->{__bsev_cb_state}->{remove} = 1;
 }
 
 =item B<stop_event>
@@ -288,7 +310,7 @@ event is stopped after all 'before_' callbacks have been run.
 
 sub stop_event {
    my ($self) = @_;
-   $self->{stop_event} = 1;
+   $self->{__bsev_stop_event} = 1;
 }
 
 =item B<add_forward ($obj, $forward_cb)>
@@ -307,7 +329,7 @@ to allow objects that receive the forwarded events to react better.)
 
 sub add_forward {
    my ($self, $obj, $forward_cb) = @_;
-   $self->{event_forwards}->{$obj} = [$obj, $forward_cb];
+   $self->{__bsev_event_forwards}->{$obj} = [$obj, $forward_cb];
 }
 
 =item B<remove_forward ($obj)>
@@ -319,7 +341,7 @@ object that was given C<add_forward> as the C<$obj> argument.
 
 sub remove_forward {
    my ($self, $obj) = @_;
-   delete $self->{event_forwards}->{$obj};
+   delete $self->{__bsev_event_forwards}->{$obj};
 }
 
 =item B<remove_all_callbacks>
@@ -331,18 +353,25 @@ from this object.
 
 sub remove_all_callbacks {
    my ($self) = @_;
-   $self->{events} = {};
-   $self->{event_forwards} = {};
-   delete $self->{exception_cb};
-   delete $self->{cb_state};
-   delete $self->{stop_event};
+   $self->{__bsev_events} = {};
+   $self->{__bsev_event_forwards} = {};
+   delete $self->{__bsev_exception_cb};
+   delete $self->{__bsev_cb_state};
+   delete $self->{__bsev_stop_event};
 }
+
+=item B<events_as_string_dump>
+
+This method returns a string dump of all registered event callbacks.
+This method is only for debugging purposes.
+
+=cut
 
 sub events_as_string_dump {
    my ($self) = @_;
    my $str = '';
-   for my $ev (keys %{$self->{events}}) {
-      my $evr = $self->{events}->{$ev};
+   for my $ev (keys %{$self->{__bsev_events}}) {
+      my $evr = $self->{__bsev_events}->{$ev};
       $str .= "$ev: " . scalar @{$evr} . "\n";
    }
    $str
