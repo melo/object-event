@@ -7,4 +7,5 @@ t/00-load.t
 t/pod-coverage.t
 t/pod.t
 t/01_simple_events.t
+t/02_stop_event.t
 samples/simple_example

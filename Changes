@@ -1,5 +1,8 @@
 Revision history for BS-Event
 
+0.3 Fri Mar 21 11:35:03 CET 2008
+        - fixed a serious bug in stop_event
+
 0.2 Fri Mar 21 01:38:12 CET 2008
         - forgot a simple test for the event handling
         - added an example

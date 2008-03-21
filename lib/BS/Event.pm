@@ -207,7 +207,17 @@ sub event {
 
    push @res, $self->_event ($ev, @arg);
 
+   if ($self->{__bsev_stop_event}) {
+      $self->{__bsev_stop_event} = $old_stop;
+      return @res;
+   }
+
    push @res, $self->_event ("ext_after_$ev", @arg);
+
+   if ($self->{__bsev_stop_event}) {
+      $self->{__bsev_stop_event} = $old_stop;
+      return @res;
+   }
 
    push @res, $self->_event ("after_$ev", @arg);
 
@@ -262,8 +272,8 @@ sub _event {
       my $rev = $self->{__bsev_event_forwards}->{$ev_frwd};
       my $state = $self->{__bsev_cb_state} = {};
 
-      my $stop_before = $rev->[0]->{stop_event};
-      $rev->[0]->{stop_event} = 0;
+      my $stop_before = $rev->[0]->{__bsev_stop_event};
+      $rev->[0]->{__bsev_stop_event} = 0;
       eval {
          push @res, $rev->[1]->($self, $rev->[0], $ev, @arg);
       };
@@ -274,10 +284,10 @@ sub _event {
             warn "unhandled callback exception: $@";
          }
       }
-      if ($rev->[0]->{stop_event}) {
+      if ($rev->[0]->{__bsev_stop_event}) {
          $self->stop_event;
       }
-      $rev->[0]->{stop_event} = $stop_before;
+      $rev->[0]->{__bsev_stop_event} = $stop_before;
 
       if ($state->{remove}) {
          delete $self->{__bsev_event_forwards}->{$ev_frwd};
