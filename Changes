@@ -1,5 +1,9 @@
 Revision history for BS-Event
 
+0.4
+        - events can now be registered from within the
+          callbacks for the same object and event safely.
+
 0.3 Fri Mar 21 11:35:03 CET 2008
         - fixed a serious bug in stop_event
 

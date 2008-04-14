@@ -126,7 +126,7 @@ It works like this:
    );
 
 Whenever the C<disconnect> event is emitted now and C<$window> doesn't
-exist anymore the callback will be removed;
+exist anymore the callback will be removed.
 
 =cut
 
@@ -181,6 +181,26 @@ Emits the event C<$eventname> and passes the arguments C<@args>.
 The return value is a list of defined return values from the event callbacks.
 
 See also the specification of the before and after events in C<reg_cb> above.
+
+NOTE: Whenever an event is emitted the current set of callbacks registered
+to that event will be used. So, if you register another event callback for the
+same event that is executed at the moment, it will be called the B<next> time 
+when the event is emitted. Example:
+
+   $obj->reg_cb (event_test => sub {
+      my ($obj) = @_;
+
+      print "Test1\n";
+      $obj->unreg_me;
+
+      $obj->reg_cb (event_test => sub {
+         print "Test2\n";
+         $obj->unreg_me;
+      });
+   });
+
+   $obj->event ('event_test'); # prints "Test1"
+   $obj->event ('event_test'); # prints "Test2"
 
 =cut
 
@@ -241,6 +261,7 @@ sub _event {
    my $nxt = [];
 
    my @evs = @{$self->{__bsev_events}->{$ev} || []};
+   $self->{__bsev_events}->{$ev} = [];
    for my $rev (@evs) {
       my $state = $self->{__bsev_cb_state} = {};
 
@@ -262,6 +283,9 @@ sub _event {
 
       push @$nxt, $rev unless $state->{remove};
    }
+
+   push @$nxt, @{$self->{__bsev_events}->{$ev}};
+
    if (!@$nxt) {
       delete $self->{__bsev_events}->{$ev}
    } else {
