@@ -3,7 +3,7 @@
 use Test::More tests => 1;
 
 BEGIN {
-	use_ok( 'BS::Event' );
+	use_ok( 'Object::Event' );
 }
 
-diag( "Testing BS::Event $BS::Event::VERSION, Perl $], $^X" );
+diag( "Testing Object::Event $Object::Event::VERSION, Perl $], $^X" );

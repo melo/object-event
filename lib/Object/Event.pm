@@ -1,10 +1,10 @@
-package BS::Event;
+package Object::Event;
 use strict;
 use Scalar::Util qw/weaken/;
 
 =head1 NAME
 
-BS::Event - A class that provides an event callback interface
+Object::Event - A class that provides an event callback interface
 
 =head1 VERSION
 
@@ -17,9 +17,9 @@ our $VERSION = '0.3';
 =head1 SYNOPSIS
 
    package foo;
-   use BS::Event;
+   use Object::Event;
 
-   our @ISA = qw/BS::Event/;
+   our @ISA = qw/Object::Event/;
 
    package main;
    my $o = foo->new;
@@ -34,10 +34,10 @@ our $VERSION = '0.3';
 
 =head1 DESCRIPTION
 
-This module was mainly written for L<Net::XMPP2>, L<Net::IRC3> and L<BS>
-to provide a consistent API for registering and emitting events.
-Even though I originally wrote it for those modules I relased it seperately
-in case anyone may find this module useful.
+This module was mainly written for L<Net::XMPP2>, L<Net::IRC3>,
+L<AnyEvent::HTTPD> and L<BS> to provide a consistent API for registering and
+emitting events.  Even though I originally wrote it for those modules I relased
+it seperately in case anyone may find this module useful.
 
 For more comprehensive event handling see also L<Glib> and L<POE>.
 
@@ -45,8 +45,6 @@ This class provides a simple way to extend a class, by inheriting from
 this class, with an event callback interface.
 
 You will be able to register callbacks for event names and call them later.
-
-This class is only really useful if you derive from it.
 
 =head1 PERFORMANCE
 
@@ -77,8 +75,9 @@ sub new {
 
 =item B<set_exception_cb ($cb)>
 
-If some event callback threw an exception then C<$cb> is called with
-the exception as first argument.
+This method installs a callback that will be called when some other
+event callback threw an exception. The first argument to C<$cb>
+will be the exception.
 
 =cut
 
@@ -100,12 +99,12 @@ The callbacks will be called in an array context. If a callback doesn't want to
 return any value it should return an empty list. All results from the callbacks
 will be appended and returned by the C<event> method.
 
-For every event there are two other events emitted:
+For every event there will also be two other event callbacks called:
 
-Before the callbacks for C<$eventname> is being exectued the event
-C<"before_$eventname"> is being emitted.
-And after the callbacks for C<$eventname> have been run, the event
-C<"after_$eventname"> is being emitted.
+Before the callbacks for C<$eventname> is being exectued the callback for
+C<"before_$eventname"> is being called.
+And after the callbacks for C<$eventname> have been run, the callback
+C<"after_$eventname"> is being called.
 
 The C<"before_$eventname"> callbacks allow you to stop the execution
 of all callbacks for the event C<$eventname> and C<"after_$eventname">.
@@ -326,7 +325,7 @@ sub _event {
 =item B<unreg_me>
 
 If this method is called from a callback on the first argument to the
-callback (thats C<$self>) the callback will be deleted after it is finished.
+callback (i.e. C<$self>) the callback will be deleted after it is finished.
 
 =cut
 
@@ -340,6 +339,9 @@ sub unreg_me {
 When called in a 'before_' event callback then the execution of the
 event is stopped after all 'before_' callbacks have been run.
 
+When callend in the main event callback, the event is stopped after
+all the main event callbacks have been run.
+
 =cut
 
 sub stop_event {
@@ -349,7 +351,7 @@ sub stop_event {
 
 =item B<add_forward ($obj, $forward_cb)>
 
-This method allows to forward or copy all events to an object.
+This method allows to forward all events to an object.
 C<$forward_cb> will be called everytime an event is generated in C<$self>.
 The first argument to the callback C<$forward_cb> will be C<$self>, the second
 will be C<$obj>, the third will be the event name and the rest will be

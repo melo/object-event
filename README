@@ -1,14 +1,14 @@
 NAME
-    BS::Event - A class that provides an event callback interface
+    Object::Event - A class that provides an event callback interface
 
 VERSION
     Version 0.3
 
 SYNOPSIS
        package foo;
-       use BS::Event;
+       use Object::Event;
 
-       our @ISA = qw/BS::Event/;
+       our @ISA = qw/Object::Event/;
 
        package main;
        my $o = foo->new;
@@ -22,10 +22,10 @@ SYNOPSIS
        $o->unreg_cb ($regid);
 
 DESCRIPTION
-    This module was mainly written for Net::XMPP2, Net::IRC3 and BS to
-    provide a consistent API for registering and emitting events. Even
-    though I originally wrote it for those modules I relased it seperately
-    in case anyone may find this module useful.
+    This module was mainly written for Net::XMPP2, Net::IRC3,
+    AnyEvent::HTTPD and BS to provide a consistent API for registering and
+    emitting events. Even though I originally wrote it for those modules I
+    relased it seperately in case anyone may find this module useful.
 
     For more comprehensive event handling see also Glib and POE.
 
@@ -34,8 +34,6 @@ DESCRIPTION
 
     You will be able to register callbacks for event names and call them
     later.
-
-    This class is only really useful if you derive from it.
 
 PERFORMANCE
     In the first version as presented here no special performance
@@ -50,8 +48,9 @@ METHODS
         hashreference initialized with %hashcontent.
 
     set_exception_cb ($cb)
-        If some event callback threw an exception then $cb is called with
-        the exception as first argument.
+        This method installs a callback that will be called when some other
+        event callback threw an exception. The first argument to $cb will be
+        the exception.
 
     reg_cb ($eventname1, $cb1, [$eventname2, $cb2, ...])
         This method registers a callback $cb1 for the event with the name
@@ -67,12 +66,12 @@ METHODS
         results from the callbacks will be appended and returned by the
         "event" method.
 
-        For every event there are two other events emitted:
+        For every event there will also be two other event callbacks called:
 
-        Before the callbacks for $eventname is being exectued the event
-        "before_$eventname" is being emitted. And after the callbacks for
-        $eventname have been run, the event "after_$eventname" is being
-        emitted.
+        Before the callbacks for $eventname is being exectued the callback
+        for "before_$eventname" is being called. And after the callbacks for
+        $eventname have been run, the callback "after_$eventname" is being
+        called.
 
         The "before_$eventname" callbacks allow you to stop the execution of
         all callbacks for the event $eventname and "after_$eventname". This
@@ -93,7 +92,7 @@ METHODS
            );
 
         Whenever the "disconnect" event is emitted now and $window doesn't
-        exist anymore the callback will be removed;
+        exist anymore the callback will be removed.
 
     unreg_cb ($id)
         Removes the set $id of registered callbacks. $id is the return value
@@ -107,6 +106,26 @@ METHODS
         See also the specification of the before and after events in
         "reg_cb" above.
 
+        NOTE: Whenever an event is emitted the current set of callbacks
+        registered to that event will be used. So, if you register another
+        event callback for the same event that is executed at the moment, it
+        will be called the next time when the event is emitted. Example:
+
+           $obj->reg_cb (event_test => sub {
+              my ($obj) = @_;
+
+              print "Test1\n";
+              $obj->unreg_me;
+
+              $obj->reg_cb (event_test => sub {
+                 print "Test2\n";
+                 $obj->unreg_me;
+              });
+           });
+
+           $obj->event ('event_test'); # prints "Test1"
+           $obj->event ('event_test'); # prints "Test2"
+
     _event ($eventname, @args)
         This directly executes the event $eventname without executing
         callbacks of the before and after events (as specified in "reg_cb"
@@ -114,20 +133,23 @@ METHODS
 
     unreg_me
         If this method is called from a callback on the first argument to
-        the callback (thats $self) the callback will be deleted after it is
+        the callback (i.e. $self) the callback will be deleted after it is
         finished.
 
     stop_event
         When called in a 'before_' event callback then the execution of the
         event is stopped after all 'before_' callbacks have been run.
 
+        When callend in the main event callback, the event is stopped after
+        all the main event callbacks have been run.
+
     add_forward ($obj, $forward_cb)
-        This method allows to forward or copy all events to an object.
-        $forward_cb will be called everytime an event is generated in $self.
-        The first argument to the callback $forward_cb will be $self, the
-        second will be $obj, the third will be the event name and the rest
-        will be the event arguments. (For third and rest of argument also
-        see description of "event").
+        This method allows to forward all events to an object. $forward_cb
+        will be called everytime an event is generated in $self. The first
+        argument to the callback $forward_cb will be $self, the second will
+        be $obj, the third will be the event name and the rest will be the
+        event arguments. (For third and rest of argument also see
+        description of "event").
 
         (Please note that it might be most useful to call "_event" in the
         callback to allow objects that receive the forwarded events to react

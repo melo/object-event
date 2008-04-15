@@ -1,9 +1,9 @@
 #!/opt/perl/bin/perl
 package test;
 
-use BS::Event;
+use Object::Event;
 
-our @ISA = qw/BS::Event/;
+our @ISA = qw/Object::Event/;
 
 sub new {
    my $c = shift;

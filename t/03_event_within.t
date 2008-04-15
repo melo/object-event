@@ -6,9 +6,9 @@ package foo;
 use strict;
 no warnings;
 
-use BS::Event;
+use Object::Event;
 
-our @ISA = qw/BS::Event/;
+our @ISA = qw/Object::Event/;
 
 package main;
 use strict;
