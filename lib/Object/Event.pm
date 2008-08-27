@@ -260,12 +260,12 @@ sub _event {
    my $nxt = [];
 
    my @evs = @{$self->{__bsev_events}->{$ev} || []};
-   $self->{__bsev_events}->{$ev} = [];
    for my $rev (@evs) {
       my $state = $self->{__bsev_cb_state} = {};
+      $state->{cur_ev} = [$ev, $rev];
 
       if ($rev->[2] && not defined $rev->[3]) {
-         $state->{remove} = 1;
+         $self->unreg_me;
 
       } else {
          eval {
@@ -279,16 +279,10 @@ sub _event {
             }
          }
       }
-
-      push @$nxt, $rev unless $state->{remove};
    }
 
-   push @$nxt, @{$self->{__bsev_events}->{$ev}};
-
-   if (!@$nxt) {
+   if (!@{$self->{__bsev_events}->{$ev} || []}) {
       delete $self->{__bsev_events}->{$ev}
-   } else {
-      $self->{__bsev_events}->{$ev} = $nxt;
    }
 
    for my $ev_frwd (keys %{$self->{__bsev_event_forwards}}) {
@@ -331,7 +325,13 @@ callback (i.e. C<$self>) the callback will be deleted after it is finished.
 
 sub unreg_me {
    my ($self) = @_;
-   $self->{__bsev_cb_state}->{remove} = 1;
+
+   my ($ev, $rev) = @{$self->{__bsev_cb_state}->{cur_ev}};
+
+   my $l = $self->{__bsev_events}->{$ev};
+   if (defined $l) {
+      @$l = grep { "$_" ne "$rev" } @$l;
+   }
 }
 
 =item B<stop_event>

@@ -9,4 +9,5 @@ t/pod.t
 t/01_simple_events.t
 t/02_stop_event.t
 t/03_event_within.t
+t/04_recursive.t
 samples/simple_example
