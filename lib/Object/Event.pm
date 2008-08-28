@@ -330,7 +330,7 @@ sub unreg_me {
 
    my $l = $self->{__bsev_events}->{$ev};
    if (defined $l) {
-      @$l = grep { "$_" ne "$rev" } @$l;
+      @$l = grep { $_ ne $rev } @$l;
    }
 }
 
