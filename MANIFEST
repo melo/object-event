@@ -10,4 +10,5 @@ t/01_simple_events.t
 t/02_stop_event.t
 t/03_event_within.t
 t/04_recursive.t
+t/05_unreg_rec.t
 samples/simple_example
