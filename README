@@ -2,7 +2,7 @@ NAME
     Object::Event - A class that provides an event callback interface
 
 VERSION
-    Version 0.4
+    Version 0.6
 
 SYNOPSIS
        package foo;

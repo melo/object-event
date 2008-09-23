@@ -1,6 +1,6 @@
 Revision history for Object-Event
 
-0.5
+0.5 Tue Sep 23 15:13:23 CEST 2008
         - recursive event calling now also should work properly.
 
 0.4 Tue Apr 15 12:48:11 CEST 2008
