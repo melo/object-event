@@ -155,6 +155,10 @@ sub reg_cb {
    $self->{_ev_id}
 }
 
+=item B<unreg_cb ($cb)>
+
+Removes the callback C<$cb> from the set of registered callbacks.
+
 =item B<unreg_cb ($id)>
 
 Removes the set C<$id> of registered callbacks. C<$id> is the
@@ -165,11 +169,21 @@ return value of a C<reg_cb> call.
 sub unreg_cb {
    my ($self, $id) = @_;
 
-   for my $key (keys %{$self->{__bsev_events}}) {
-      @{$self->{__bsev_events}->{$key}} =
-         grep {
-            $_->[0] ne $id
-         } @{$self->{__bsev_events}->{$key}};
+   if (ref $id) {
+      for my $key (keys %{$self->{__bsev_events}}) {
+         @{$self->{__bsev_events}->{$key}} =
+            grep {
+               $_->[1] ne $id
+            } @{$self->{__bsev_events}->{$key}};
+      }
+     
+   } else {
+      for my $key (keys %{$self->{__bsev_events}}) {
+         @{$self->{__bsev_events}->{$key}} =
+            grep {
+               $_->[0] ne $id
+            } @{$self->{__bsev_events}->{$key}};
+      }
    }
 }
 
@@ -332,6 +346,20 @@ sub unreg_me {
    if (defined $l) {
       @$l = grep { $_ ne $rev } @$l;
    }
+}
+
+=item B<unreg_my_set>
+
+This method will remove all callbacks registered together with the currently
+executed callback.
+
+=cut
+
+sub unreg_my_set {
+   my ($self) = @_;
+
+   my ($ev, $rev) = @{$self->{__bsev_cb_state}->{cur_ev}};
+   $self->unreg_cb ($rev->[0]);
 }
 
 =item B<stop_event>

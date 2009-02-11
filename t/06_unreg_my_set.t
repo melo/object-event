@@ -24,13 +24,12 @@ $f->reg_cb (
 
       $a++;
 
-      $f->unreg_me;
+      $f->unreg_my_set;
       $f->event ('test2');
    },
    test2 => sub {
       my ($f) = @_;
       $b++;
-      $f->unreg_me;
    }
 );
 
@@ -40,4 +39,4 @@ $f->event ('test2');
 $f->event ('test2');
 
 is ($a, 1, 'first callback was called once');
-is ($b, 1, 'second callback was called once');
+is ($b, 0, 'second callback was called never');
