@@ -1,6 +1,6 @@
 #!perl -T
 
-use Test::More tests => 7;
+use Test::More tests => 9;
 
 package foo;
 use strict;
@@ -39,6 +39,15 @@ is ($cnt[0], 'first', "the first event callback was called first");
 is ($cnt[1], 'second', "the second event callback was called first");
 is ($called_after, 10, "main after event callback was called");
 is ($called_before, 10, "main before event callback was called");
+
+my $cb = sub { $called++ };
+$f->reg_cb( hit_me => $cb );
+$f->event('hit_me');
+is($called, 6, 'Hit me was called');
+
+$f->unreg_cb($cb);
+$f->event('hit_me');
+is($called, 6, 'Hit me was unregistered correctly');
 
 my $died;
 $f->set_exception_cb(sub {
