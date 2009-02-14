@@ -1,6 +1,6 @@
 #!perl -T
 
-use Test::More tests => 2;
+use Test::More tests => 9;
 
 package foo;
 use strict;
@@ -16,15 +16,32 @@ no warnings;
 
 my $f = foo->new;
 
-my $a = 0;
-my $b = 0;
+my ($before, $event, $after);
+sub clear { $before = $event = $after = 0 }
+
 $f->reg_cb (
-   before_test => sub { $a = 1 },
-   test        => sub { $_[0]->stop_event; },
-   after_test  => sub { $b = 1; },
+   before_test => sub { $before = 1; $_[0]->stop_event if $_[1] eq 'before' },
+   test        => sub { $event  = 1; $_[0]->stop_event if $_[1] eq 'event' },
+   after_test  => sub { $after  = 1; $_[0]->stop_event if $_[1] eq 'after' },
 );
 
-$f->event ('test');
+clear();
+$f->event ('test', 'event');
 
-is ($a, 1, 'before has been executed');
-is ($b, 0, 'after has not been executed');
+is ($before, 1, 'before has been executed');
+is ($event,  1, 'event has been executed');
+is ($after,  0, 'after has not been executed');
+
+clear();
+$f->event ('test', 'before');
+
+is ($before, 1, 'before has been executed');
+is ($event,  0, 'event has not been executed');
+is ($after,  0, 'after has not been executed');
+
+clear();
+$f->event ('test', 'after');
+
+is ($before, 1, 'before has been executed');
+is ($event,  1, 'event has been executed');
+is ($after,  1, 'after has been executed');
