@@ -1,6 +1,6 @@
 #!perl -T
 
-use Test::More tests => 9;
+use Test::More tests => 12;
 
 package foo;
 use strict;
@@ -63,3 +63,17 @@ $f->set_exception_cb(undef);
 $SIG{__WARN__} = sub { $died = $_[0] };
 $f->event('zombie');
 like ($died, qr/unhandled callback exception/, 'Exception generated a warning');
+
+$f->remove_all_callbacks;
+$called = 0;
+$f->event('hit_me');
+is ($called, 0, 'No more registered events');
+
+my $t = $f->events_as_string_dump;
+is ($t, '');
+
+$f->reg_cb('hit_me' => $cb);
+
+$t = $f->events_as_string_dump;
+is ($t, "hit_me: 1\n");
+
