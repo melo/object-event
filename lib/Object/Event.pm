@@ -140,6 +140,8 @@ sub reg_cb {
    while (@regs) {
       my ($cmd, $cb) = (shift @regs, shift @regs);
       my $arg = [$self->{_ev_id}, $cb];
+      
+      next if $cmd eq '_while_referenced';
 
       if (defined $while_ref) {
          push @$arg, (1, $while_ref);
